@@ -18,20 +18,41 @@ void updateCore(int caches[4][4][4], int core, int tag, int cacheCS, int newCS) 
 {
     if(cacheCS == -1) return; //This means the TAG is not in the Cache so it doesn't matter
 
-    for(int i = 0; i < 4; i++)
+    if(newCS == 4)
     {
-        if(caches[core][i][2] == tag)
+        for(int i = 0; i < 4; i++)
         {
-            if(newCS == 4)
+            if(caches[core][i][2] == tag)
             {
+                
                 if(caches[core][i][0] == 1)
                 { 
                     caches[core][i][0] = 2;
                 }
                 else if(caches[core][i][0] == 3) //ONLY THE EXCLUSIVE CAN GO TO FORWARDER
                 {
-                    caches[core][i][0] = 6;
+                   caches[core][i][0] = 6;
                 }
+                
+            }
+        }
+    }
+    else if(newCS == 1)
+    {
+        for(int i = 0; i < 4; i++)
+        {
+            if(caches[core][i][2] == tag)
+            {
+                if (caches[core][i][0] == 1 || caches[core][i][0] == 2)
+                {
+                    writebacks++;
+                }
+                
+                //all other cores have to go to the I state
+                caches[core][i][0] = 5;
+                //LRU state stays the same
+                caches[core][i][2] = 0; //Reset tag to 0
+                caches[core][i][3] = 0; //dirty bit goes to 0
             }
         }
     }
@@ -220,7 +241,18 @@ int main(int argc, char* argv[]) {
             }
             else if(command == "write")
             {
+                caches[core][line][0] = 1; //Go to M state
+                caches[core][line][1] = 3;
+                caches[core][line][2] = tag;
+                caches[core][line][3] = 1; //Line is now dirty
 
+                for(int k = 0; k < 4; k++)
+                {
+                    if(k != core)
+                    {
+                        updateCore(caches, k, tag, cacheCS[k], caches[core][line][0]);
+                    }
+                }
             }
             //Decrease the LRU values for all lines that weren't updated
             decreaseLRU(caches, core, oldLRU, line);
@@ -239,18 +271,21 @@ int main(int argc, char* argv[]) {
             }
             oldLRU = caches[core][line][1];
 
+            if(caches[core][line][0] != 3) broadcasts++;
             if(command == "read")
             {
+                //if it is a hit but we are in the M or O state then we braodcast
+                //if(caches[core][line][0] == 1 || caches[core][line][0] == 2 || caches[core][line][0] == 4) broadcasts++;
                 //Stay in the same Coherency level
                 caches[core][line][1] = 3;
                 //Tag stays the same
                 //dirty bit stays the same
 
                 //NO BROADCAST
-
             }
             else if(command == "write")
             {
+                //broadcasts++;
                 if(caches[core][line][0] == 3) //this means we are writing to an exclusive state so no need to broadcast or update the rest
                 {
                     caches[core][line][0] = 1; //set to modified
@@ -259,6 +294,23 @@ int main(int argc, char* argv[]) {
                     caches[core][line][3] = 1; //Line is now dirty since it will need to be written back
 
                     //NO BROADCAST
+                    //Dont braodcast when we go from E-M or when we read from a M or O state
+                }
+                //TO DO what do you do if you write to a modified or the owner
+                else //Writing to a shared 
+                {
+                    caches[core][line][0] = 1; //Go to M state
+                    caches[core][line][1] = 3;
+                    //caches[core][line][2] = tag; TAG stays the same
+                    caches[core][line][3] = 1; //Line is now dirty
+
+                    for(int k = 0; k < 4; k++)
+                    {
+                        if(k != core)
+                        {
+                            updateCore(caches, k, tag, cacheCS[k], caches[core][line][0]);
+                        }
+                    }
                 }
             }
             //Decrease the LRU values for all lines that weren't updated
@@ -284,7 +336,7 @@ int main(int argc, char* argv[]) {
     // Print all caches
     //printCache(caches, "All Caches");
 
-
+    //ANSWERS
     cout << hits << endl;
     cout << misses << endl;
     cout << writebacks << endl;
