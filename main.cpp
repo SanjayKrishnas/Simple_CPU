@@ -25,7 +25,7 @@ void updateCore(int caches[4][4][4], int core, int tag, int cacheCS, int newCS) 
             if(caches[core][i][2] == tag)
             {
                 
-                if(caches[core][i][0] == 1)
+                if(caches[core][i][0] == 1) //ONLLY THE M CAN GO TO O
                 { 
                     caches[core][i][0] = 2;
                 }
@@ -43,7 +43,7 @@ void updateCore(int caches[4][4][4], int core, int tag, int cacheCS, int newCS) 
         {
             if(caches[core][i][2] == tag)
             {
-                if (caches[core][i][0] == 1 || caches[core][i][0] == 2)
+                if (caches[core][i][0] == 1 || caches[core][i][0] == 2) //if in either M or O state
                 {
                     writebacks++;
                 }
@@ -80,7 +80,7 @@ void decreaseLRU(int caches[4][4][4], int core, int oldLRU, int line)
 {
     for(int i = 0; i < 4; i++)
     {
-        if(caches[core][i][1] > oldLRU && i != line)
+        if(caches[core][i][1] > oldLRU && i != line) //reduce all LRU that isn't the new one by 1
         {
             caches[core][i][1]--;
         }
@@ -201,8 +201,18 @@ int main(int argc, char* argv[]) {
             {
                 for(int j = 0; j < 4; j++) //find the LRU cache line that is 0
                 {
-                    if(caches[core][j][1] == 0) line = j;
-                    break;
+                    if(caches[core][j][1] == 0)
+                    {
+                        line = j;
+                        break;
+                    }
+                }
+
+                //if the line to be evicted is in the M or O state then we need to do a writeback
+                if(caches[core][line][0] == 1 || caches[core][line][0] == 2)
+                {
+                    writebacks++;
+                    caches[core][line][3] = 0; //Line is no longer dirty
                 }
             }
             oldLRU = caches[core][line][1];
@@ -333,7 +343,7 @@ int main(int argc, char* argv[]) {
         }
     };
 
-    // Print all caches
+    // DEBUG Print all caches
     //printCache(caches, "All Caches");
 
     //ANSWERS
